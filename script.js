@@ -1,7 +1,8 @@
+```javascript
 /* =====================================================
    PROMIX ENTERTAINMENT STUDIO
    MAIN JAVASCRIPT
-   FORMSPREE + ZOHO CRM READY
+   FORMSPREE FORM SUBMISSION
 ===================================================== */
 
 
@@ -11,55 +12,18 @@
 
 const PROMIX_CONFIG = {
 
-    /*
-     * =================================================
-     * FORMSPREE
-     * =================================================
-     *
-     * Get this URL from your Formspree dashboard.
-     *
-     * Example:
-     * https://formspree.io/f/xxxxxxxx
-     *
-     */
-
     FORMSPREE_ENABLED: true,
 
-    FORMSPREE_ENDPOINT:
-        
-	"https://formspree.io/f/xyezqoen",
-
     /*
-     * =================================================
-     * ZOHO CRM
-     * =================================================
-     *
-     * Set this to true AFTER you create your Zoho
-     * Webform/API connection.
-     *
-     */
-
-    ZOHO_ENABLED: false,
-
-    /*
-     * If using a Zoho Webform, place the Zoho
-     * Webform URL here.
+     * REPLACE THIS WITH YOUR REAL FORMSPREE ENDPOINT
      *
      * Example:
-     *
-     * https://crm.zoho.com/crm/WebFormServeServlet?...
-     *
+     * https://formspree.io/f/abcd1234
      */
 
-    ZOHO_WEBFORM_URL:
-        "",
-
-
-    /*
-     * =================================================
-     * GENERAL SETTINGS
-     * =================================================
-     */
+    FORMSPREE_ENDPOINT:
+        /*"https://formspree.io/f/YOUR_FORMSPREE_ID",*/
+		"https://formspree.io/f/xyezqoen",
 
     LEAD_SOURCE:
         "Promix Entertainment Studio Website"
@@ -109,7 +73,7 @@ if (menuToggle && mainNav) {
 
 
 /* =====================================================
-   BOOKING / LEAD FORM
+   BOOKING FORM
 ===================================================== */
 
 const bookingForm =
@@ -125,46 +89,86 @@ if (bookingForm) {
         "submit",
         async function(event) {
 
-            /*
-             * Stop the browser from navigating away.
-             */
-
             event.preventDefault();
 
 
-            /*
-             * Make sure a Formspree endpoint exists.
-             */
+            /* =================================================
+               PREVENT DOUBLE SUBMISSION
+            ================================================= */
 
             if (
-                PROMIX_CONFIG.FORMSPREE_ENABLED &&
-                (
-                    !PROMIX_CONFIG.FORMSPREE_ENDPOINT ||
-                    PROMIX_CONFIG.FORMSPREE_ENDPOINT.includes(
-                        "YOUR_FORMSPREE_ID"
-                    )
-                )
+                bookingForm.dataset.submitting === "true"
             ) {
-
-                if (formMessage) {
-
-                    formMessage.textContent =
-                        "Form is not configured yet. Please add your Formspree endpoint.";
-
-                }
-
-                console.error(
-                    "Formspree endpoint has not been configured."
-                );
 
                 return;
 
             }
 
 
-            /*
-             * Show processing message.
-             */
+            bookingForm.dataset.submitting =
+                "true";
+
+
+            /* =================================================
+               SUBMIT BUTTON
+            ================================================= */
+
+            const submitButton =
+                bookingForm.querySelector(
+                    'button[type="submit"]'
+                );
+
+
+            const originalButtonText =
+                submitButton
+                    ? submitButton.textContent
+                    : "";
+
+
+            if (submitButton) {
+
+                submitButton.disabled = true;
+
+                submitButton.textContent =
+                    "Sending...";
+
+            }
+
+
+            /* =================================================
+               CHECK FORMSPREE CONFIGURATION
+            ================================================= */
+
+            if (
+                !PROMIX_CONFIG.FORMSPREE_ENDPOINT ||
+                PROMIX_CONFIG.FORMSPREE_ENDPOINT.includes(
+                    "YOUR_FORMSPREE_ID"
+                )
+            ) {
+
+                console.error(
+                    "ERROR: Formspree endpoint has not been configured."
+                );
+
+
+                if (formMessage) {
+
+                    formMessage.textContent =
+                        "Formspree is not configured yet.";
+
+                }
+
+
+                resetFormState();
+
+                return;
+
+            }
+
+
+            /* =================================================
+               SHOW SENDING MESSAGE
+            ================================================= */
 
             if (formMessage) {
 
@@ -174,17 +178,17 @@ if (bookingForm) {
             }
 
 
-            /*
-             * Collect form data.
-             */
+            /* =================================================
+               CREATE FORM DATA
+            ================================================= */
 
             const formData =
                 new FormData(bookingForm);
 
 
-            /*
-             * Add lead source.
-             */
+            /* =================================================
+               ADD LEAD SOURCE
+            ================================================= */
 
             formData.append(
                 "lead_source",
@@ -192,9 +196,9 @@ if (bookingForm) {
             );
 
 
-            /*
-             * Add current website URL.
-             */
+            /* =================================================
+               ADD WEBSITE URL
+            ================================================= */
 
             formData.append(
                 "website_url",
@@ -208,131 +212,167 @@ if (bookingForm) {
 
             try {
 
-                if (PROMIX_CONFIG.FORMSPREE_ENABLED) {
+                console.log(
+                    "Submitting form to:",
+                    PROMIX_CONFIG.FORMSPREE_ENDPOINT
+                );
 
-                    const response =
-                        await fetch(
-                            PROMIX_CONFIG.FORMSPREE_ENDPOINT,
-                            {
-                                method: "POST",
 
-                                body: formData,
+                const response =
+                    await fetch(
+                        PROMIX_CONFIG.FORMSPREE_ENDPOINT,
+                        {
+                            method: "POST",
 
-                                headers: {
-                                    "Accept":
-                                        "application/json"
-                                }
+                            body: formData,
+
+                            headers: {
+                                "Accept":
+                                    "application/json"
                             }
-                        );
+                        }
+                    );
 
 
-                    /*
-                     * Check Formspree response.
-                     */
-
-                    if (!response.ok) {
-
-                        throw new Error(
-                            `Formspree error: ${response.status}`
-                        );
-
-                    }
-
-                }
-
-
-                /* =================================================
-                   ZOHO CRM
-                ================================================= */
-
-                /*
-                 * Zoho is optional.
-                 *
-                 * It will only run when:
-                 *
-                 * ZOHO_ENABLED = true
-                 *
-                 * AND
-                 *
-                 * a Zoho Webform URL exists.
-                 */
-
-                if (
-                    PROMIX_CONFIG.ZOHO_ENABLED &&
-                    PROMIX_CONFIG.ZOHO_WEBFORM_URL
-                ) {
-
-                    try {
-
-                        await fetch(
-                            PROMIX_CONFIG.ZOHO_WEBFORM_URL,
-                            {
-                                method: "POST",
-
-                                body: formData,
-
-                                mode: "no-cors"
-                            }
-                        );
-
-                    }
-
-                    catch (zohoError) {
-
-                        /*
-                         * Do not prevent the Formspree
-                         * submission from succeeding
-                         * if Zoho has a problem.
-                         */
-
-                        console.error(
-                            "Zoho submission error:",
-                            zohoError
-                        );
-
-                    }
-
-                }
+                console.log(
+                    "Formspree response status:",
+                    response.status
+                );
 
 
                 /* =================================================
                    SUCCESS
                 ================================================= */
 
-                if (formMessage) {
+                if (response.ok) {
 
-                    formMessage.textContent =
-                        "Thank you! Your request has been received. We will contact you shortly.";
+                    const result =
+                        await response.json().catch(
+                            () => null
+                        );
+
+
+                    console.log(
+                        "Formspree submission successful:",
+                        result
+                    );
+
+
+                    if (formMessage) {
+
+                        formMessage.textContent =
+                            "Thank you! Your request has been received. We will contact you shortly.";
+
+                    }
+
+
+                    bookingForm.reset();
+
+
+                    /*
+                     * Leave the form available
+                     * for another visitor submission.
+                     */
+
+                    resetFormState();
+
+                    return;
 
                 }
 
 
-                /*
-                 * Clear the form after successful
-                 * Formspree submission.
-                 */
+                /* =================================================
+                   FORMSPREE ERROR
+                ================================================= */
 
-                bookingForm.reset();
+                let errorText =
+                    `Formspree returned HTTP ${response.status}`;
 
+
+                try {
+
+                    const errorData =
+                        await response.json();
+
+
+                    console.error(
+                        "Formspree error response:",
+                        errorData
+                    );
+
+
+                    if (
+                        errorData &&
+                        errorData.errors
+                    ) {
+
+                        errorText =
+                            errorData.errors
+                                .map(
+                                    error =>
+                                        error.message
+                                )
+                                .join(", ");
+
+                    }
+
+                }
+
+                catch (jsonError) {
+
+                    console.error(
+                        "Could not read Formspree error response.",
+                        jsonError
+                    );
+
+                }
+
+
+                throw new Error(
+                    errorText
+                );
 
             }
+
 
             catch (error) {
 
                 console.error(
-                    "Form submission error:",
+                    "FORM SUBMISSION FAILED:",
                     error
                 );
 
 
-                /* =================================================
-                   ERROR MESSAGE
-                ================================================= */
-
                 if (formMessage) {
 
                     formMessage.textContent =
-                        "Sorry, there was a problem sending your request. Please try again or contact us directly.";
+                        "There was a problem submitting your request. Please try again.";
+
+                }
+
+
+                resetFormState();
+
+            }
+
+
+            /* =================================================
+               RESET FORM STATE
+            ================================================= */
+
+            function resetFormState() {
+
+                bookingForm.dataset.submitting =
+                    "false";
+
+
+                if (submitButton) {
+
+                    submitButton.disabled =
+                        false;
+
+                    submitButton.textContent =
+                        originalButtonText;
 
                 }
 
@@ -362,4 +402,4 @@ if (footerYear) {
         `© ${year} Promix Entertainment Studio. All Rights Reserved.`;
 
 }
-
+```
